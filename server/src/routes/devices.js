@@ -1,0 +1,5 @@
+import {Router} from 'express';import crypto from 'crypto';import {IoTDevice,DeviceLog,Shipment} from '../models.js';import {auth,allow,asyncRoute} from '../middleware.js';const r=Router();r.use(auth);
+r.get('/',asyncRoute(async(q,s)=>s.json(await IoTDevice.find().select('-deviceKey').populate('shipment'))));
+r.post('/',allow('Admin','Warehouse Manager'),asyncRoute(async(q,s)=>{const key=crypto.randomBytes(24).toString('hex');const d=await IoTDevice.create({...q.body,deviceKey:key});if(d.shipment)await Shipment.findByIdAndUpdate(d.shipment,{device:d._id});await DeviceLog.create({device:d._id,event:'registered'});s.status(201).json({...d.toObject(),deviceKey:key});}));
+r.put('/:id',allow('Admin','Warehouse Manager'),asyncRoute(async(q,s)=>{const d=await IoTDevice.findByIdAndUpdate(q.params.id,q.body,{new:true,runValidators:true}).select('-deviceKey');if(q.body.shipment)await Shipment.findByIdAndUpdate(q.body.shipment,{device:d._id});s.json(d);}));
+r.delete('/:id',allow('Admin','Warehouse Manager'),asyncRoute(async(q,s)=>{await IoTDevice.findByIdAndDelete(q.params.id);s.json({ok:true});}));export default r;
